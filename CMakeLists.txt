@@ -586,10 +586,11 @@ if( NOT CMAKE_INSTALL_LIBDIR STREQUAL "lib" AND NOT EXISTS "${CMAKE_BINARY_DIR}/
 endif()
 
 # Define Audacity's name
+# Audacity for Agents: distinct exe / appdata so this build can run beside stock Audacity.
 if( CMAKE_SYSTEM_NAME MATCHES "Darwin|Windows" )
-   set( AUDACITY_NAME "Audacity" )
+   set( AUDACITY_NAME "AudacityForAgents" )
 else()
-   set( AUDACITY_NAME "audacity" )
+   set( AUDACITY_NAME "audacity-for-agents" )
 endif()
 
 # Create short and full version strings

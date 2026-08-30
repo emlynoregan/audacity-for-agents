@@ -27,17 +27,16 @@ our $t0;
 
 # TODO: Maybe get the pipe names from audacity?
 if ($^O eq 'MSWin32') {
-   $Name = 'Srv';
-   $ToSrvName = '\\\\.\\pipe\\To'.$Name.'Pipe';
-   $FromSrvName = '\\\\.\\pipe\\From'.$Name.'Pipe';
+   $ToSrvName = '\\\\.\\pipe\\ToAudacityForAgents';
+   $FromSrvName = '\\\\.\\pipe\\FromAudacityForAgents';
 } elsif ($^O eq 'linux') {
    $UID = $<;
-   $ToSrvName = '/tmp/audacity_script_pipe.to.'.$UID;
-   $FromSrvName = '/tmp/audacity_script_pipe.from.'.$UID;
+   $ToSrvName = '/tmp/audacity_for_agents_script_pipe.to.'.$UID;
+   $FromSrvName = '/tmp/audacity_for_agents_script_pipe.from.'.$UID;
 } elsif ($^O eq 'darwin') {
    $UID = $<;
-   $ToSrvName = '/tmp/audacity_script_pipe.to.'.$UID;
-   $FromSrvName = '/tmp/audacity_script_pipe.from.'.$UID;
+   $ToSrvName = '/tmp/audacity_for_agents_script_pipe.to.'.$UID;
+   $FromSrvName = '/tmp/audacity_for_agents_script_pipe.from.'.$UID;
 }
 
 # Open pipes

@@ -167,6 +167,11 @@ public:
    //    ProjectManager::OnCloseWindow()
    void SetBypass();
 
+   // Detach a just-saved .aup3 without mutating it: drop autosave, checkpoint
+   // WAL, and skip sampleblock DELETEs. Unlike SetBypass(), this never
+   // re-enables deletes for unused blocks — those blocks belong to the save.
+   void PrepareDetach();
+
 private:
    //! Strings like -wal that may be appended to main project name to get other files created by
    //! the database system

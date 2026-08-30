@@ -2510,6 +2510,35 @@ void ProjectFileIO::SetDBError(
       currConn->SetDBError(msg, libraryError, errorCode);
 }
 
+void ProjectFileIO::PrepareDetach()
+{
+   if (!HasConnection())
+      return;
+
+   // SaveProject on a newly renamed temporary project does not pass through
+   // the Save-As pruning branch.  Effects and undo history can therefore
+   // leave sampleblocks that are not referenced by the saved project XML.
+   // Stock Audacity deletes those while loading and calls the project
+   // recovered.  Prune against the live tracks before detaching.
+   using namespace WaveTrackUtilities;
+   SampleBlockIDSet blockids;
+   InspectBlocks(TrackList::Get(mProject), {}, &blockids);
+   const bool recovered = mRecovered;
+   if (!DeleteBlocks(blockids, true))
+      wxLogMessage("Failed to prune orphan blocks before project detach");
+   // Orphan cleanup here is part of a clean save, not crash recovery.
+   mRecovered = recovered;
+
+   // Kill a timer-rewritten autosave row so stock Audacity does not show
+   // "Project Recovered" on the file we are about to leave on disk.
+   // WAL is checkpointed when CloseConnection() runs (checkpoint thread).
+   (void) AutoSaveDelete();
+
+   auto &currConn = CurrConn();
+   if (currConn)
+      currConn->SetBypass(true);
+}
+
 void ProjectFileIO::SetBypass()
 {
    auto &currConn = CurrConn();

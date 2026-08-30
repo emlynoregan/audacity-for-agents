@@ -30,6 +30,7 @@
 #include "ProjectFileIO.h"
 #include "prefs/GUISettings.h"
 #include "AudacityTextEntryDialog.h"
+#include "AudacityMessageBox.h"
 
 namespace CrashReport {
 
@@ -94,7 +95,9 @@ void Generate(wxDebugReport::Context ctx)
       thread.join();
    }
 
-   bool ok = wxDebugReportPreviewStd().Show(rpt);
+   bool ok = false;
+   if (!IsAudacityBatchMode())
+      ok = wxDebugReportPreviewStd().Show(rpt);
    
 #if defined(__WXMSW__)
    wxEventLoop::SetCriticalWindow(NULL);

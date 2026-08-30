@@ -12,13 +12,13 @@ import sys
 
 if( sys.platform  == 'win32' ):
     print( "get-gui-structure.py, running on windows" )
-    toname = '\\\\.\\pipe\\ToSrvPipe'
-    fromname = '\\\\.\\pipe\\FromSrvPipe'
+    toname = '\\\\.\\pipe\\ToAudacityForAgents'
+    fromname = '\\\\.\\pipe\\FromAudacityForAgents'
     EOL = '\r\n\0'
 else:
     print( "get-gui-structure.py, running on linux or mac" )
-    toname = '/tmp/audacity_script_pipe.to.' + str(os.getuid())
-    fromname = '/tmp/audacity_script_pipe.from.' + str(os.getuid())
+    toname = '/tmp/audacity_for_agents_script_pipe.to.' + str(os.getuid())
+    fromname = '/tmp/audacity_for_agents_script_pipe.from.' + str(os.getuid())
     EOL = '\n'
 
 print( "Write to  \"" + toname +"\"" )

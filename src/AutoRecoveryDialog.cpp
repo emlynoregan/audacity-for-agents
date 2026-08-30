@@ -17,6 +17,7 @@ Paul Licameli split from AutoRecovery.cpp
 #include "ShuttleGui.h"
 #include "TempDirectory.h"
 #include "AudacityMessageBox.h"
+#include "FileNames.h"
 #include "wxPanelWrapper.h"
 
 #include <wx/dir.h>
@@ -447,11 +448,56 @@ static void DiscardAllProjects(const FilePaths &files)
       ProjectFileManager::DiscardAutosave(file);
 }
 
+static FilePaths FindRecoverableProjectFiles(AudacityProject *project)
+{
+   wxString tempdir = TempDirectory::TempDir();
+   wxString pattern = wxT("*.") + FileNames::UnsavedProjectExtension();
+   FilePaths files;
+
+   wxDir::GetAllFiles(tempdir, &files, pattern, wxDIR_FILES);
+
+   FilePaths active = ActiveProjects::GetAll();
+   for (auto file : active)
+   {
+      wxFileName fn = file;
+      if (fn.FileExists())
+      {
+         FilePath fullPath = fn.GetFullPath();
+         if (files.Index(fullPath) == wxNOT_FOUND)
+            files.push_back(fullPath);
+      }
+      else
+         ActiveProjects::Remove(file);
+   }
+
+   FilePath activeFile;
+   if (project)
+   {
+      auto &projectFileIO = ProjectFileIO::Get(*project);
+      activeFile = projectFileIO.GetFileName();
+   }
+
+   FilePaths result;
+   for (auto file : files)
+   {
+      wxFileName fn = file;
+      if (fn != activeFile)
+         result.push_back(fn.GetFullPath());
+   }
+   return result;
+}
+
 bool ShowAutoRecoveryDialogIfNeeded(AudacityProject *&pproj, bool *didRecoverAnything)
 {
    if (didRecoverAnything)
    {
       *didRecoverAnything = false;
+   }
+
+   if (IsAudacityBatchMode())
+   {
+      DiscardAllProjects(FindRecoverableProjectFiles(pproj));
+      return true;
    }
 
    bool success = true;

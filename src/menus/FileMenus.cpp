@@ -241,6 +241,15 @@ void OnProjectReset(const CommandContext &context)
 void OnClose(const CommandContext &context )
 {
    auto &project = context.project;
+   if (IsAudacityBatchMode())
+   {
+      // Keep the hidden frame and the script pipe. Destroying the last
+      // project window kills this process and drops the pipe.
+      // ResetProjectToEmpty detaches the saved .aup3; it must not
+      // DoRemoveTracks against that file.
+      ProjectManager::Get(project).ResetProjectToEmpty();
+      return;
+   }
    auto &window = GetProjectFrame(project);
    ProjectFileManager::Get( project ).SetMenuClose(true);
    window.Close();
@@ -427,9 +436,13 @@ void OnImportRaw(const CommandContext &context)
 
 void OnExit(const CommandContext &WXUNUSED(context) )
 {
-   // Simulate the application Exit menu item
-   wxCommandEvent evt{ wxEVT_MENU, wxID_EXIT };
-   wxTheApp->ProcessEvent( evt );
+   // Delay until after the script pipe has sent "Exit finished: OK".
+   // Quitting inside Apply() tears down wx while the pipe thread is still
+   // in this command and can crash into the debug-report dialog.
+   wxTheApp->CallAfter([]{
+      wxCommandEvent evt{ wxEVT_MENU, wxID_EXIT };
+      wxTheApp->ProcessEvent( evt );
+   });
 }
 
 void OnExportFLAC(const CommandContext &context)

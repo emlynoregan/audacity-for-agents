@@ -1056,6 +1056,8 @@ if( CMAKE_SYSTEM_NAME MATCHES "Windows" )
       ${TARGET}
       PROPERTIES
          # Make sure we're a GUI application and not a console tool
+         # (Explorer must not flash a console). Stdio is attached to the
+         # parent process at startup for Python/cmd.
          WIN32_EXECUTABLE ON
          # Add the resources
          RESOURCE "${WIN_RESOURCES}"

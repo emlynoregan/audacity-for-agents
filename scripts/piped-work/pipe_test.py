@@ -20,13 +20,13 @@ import sys
 
 if sys.platform == 'win32':
     print("pipe-test.py, running on windows")
-    TONAME = '\\\\.\\pipe\\ToSrvPipe'
-    FROMNAME = '\\\\.\\pipe\\FromSrvPipe'
+    TONAME = '\\\\.\\pipe\\ToAudacityForAgents'
+    FROMNAME = '\\\\.\\pipe\\FromAudacityForAgents'
     EOL = '\r\n\0'
 else:
     print("pipe-test.py, running on linux or mac")
-    TONAME = '/tmp/audacity_script_pipe.to.' + str(os.getuid())
-    FROMNAME = '/tmp/audacity_script_pipe.from.' + str(os.getuid())
+    TONAME = '/tmp/audacity_for_agents_script_pipe.to.' + str(os.getuid())
+    FROMNAME = '/tmp/audacity_for_agents_script_pipe.from.' + str(os.getuid())
     EOL = '\n'
 
 print("Write to  \"" + TONAME +"\"")

@@ -30,8 +30,8 @@ end
 
 ## Initialization and helper functions
 UID=num2str(getuid());
-PIPE_TO_PATH=strcat("/tmp/audacity_script_pipe.to.", UID);
-PIPE_FROM_PATH=strcat("/tmp/audacity_script_pipe.from.", UID);
+PIPE_TO_PATH=strcat("/tmp/audacity_for_agents_script_pipe.to.", UID);
+PIPE_FROM_PATH=strcat("/tmp/audacity_for_agents_script_pipe.from.", UID);
 TMP_FILENAME=strcat(pwd(), "/tmp.wav");
 
 printf("Open scripting pipes, this may freeze if Audacity does not run...\n");

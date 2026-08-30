@@ -21,6 +21,7 @@ Provides thread-safe logging based on the wxWidgets log facility.
 
 #include <memory>
 #include <mutex>
+#include <cstdio>
 #include <wx/ffile.h>
 #include <wx/log.h>
 #include <wx/tokenzr.h>
@@ -85,6 +86,12 @@ void AudacityLogger::DoLogText(const wxString & str)
    }
 
    mBuffer << str << wxT("\n");
+
+   {
+      const auto utf8 = (str + wxT("\n")).ToUTF8();
+      fwrite(utf8.data(), 1, utf8.length(), stderr);
+      fflush(stderr);
+   }
 
    mUpdated = true;
 

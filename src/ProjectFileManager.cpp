@@ -845,15 +845,17 @@ void ProjectFileManager::CloseProject()
    auto &project = mProject;
    auto &projectFileIO = ProjectFileIO::Get(project);
 
-   projectFileIO.CloseProject();
-
-   // Blocks were locked in CompactProjectOnClose, so DELETE the data structure so that
-   // there's no memory leak.
+   // Release backup tracks while their sample blocks can still see the
+   // connection. PrepareDetach() sets bypass first for batch Close:, so this
+   // cannot mutate the handoff file. Clearing after CloseProject() caused
+   // "Connection to project file is null" from sample-block destructors.
    if (mLastSavedTracks)
    {
       mLastSavedTracks->Clear();
       mLastSavedTracks.reset();
    }
+
+   projectFileIO.CloseProject();
 }
 
 // static method, can be called outside of a project

@@ -48,6 +48,13 @@ void wxWidgetsBasicUI::DoShowErrorDialog(
    const ManualPageID &helpPage,
    const BasicUI::ErrorDialogOptions &options)
 {
+   if (IsAudacityBatchMode())
+   {
+      AudacityBatchLog(
+         dlogTitle.Translation(),
+         message.Translation());
+      return;
+   }
    using namespace BasicUI;
    bool modal = true;
    auto parent = wxWidgetsWindowPlacement::GetParent(placement);
@@ -160,12 +167,34 @@ wxWidgetsBasicUI::DoMessageBox(
    }
 }
 
+namespace {
+struct BatchProgressDialog final : BasicUI::ProgressDialog {
+   ProgressResult Poll(unsigned long long, unsigned long long,
+      const TranslatableString &) override
+   {
+      return ProgressResult::Success;
+   }
+   void SetMessage(const TranslatableString &) override {}
+   void SetDialogTitle(const TranslatableString &) override {}
+   void Reinit() override {}
+};
+
+struct BatchGenericProgress final : BasicUI::GenericProgressDialog {
+   ProgressResult Pulse() override
+   {
+      return ProgressResult::Success;
+   }
+};
+}
+
 std::unique_ptr<BasicUI::ProgressDialog>
 wxWidgetsBasicUI::DoMakeProgress(const TranslatableString & title,
    const TranslatableString &message,
    unsigned flags,
    const TranslatableString &remainingLabelText)
 {
+   if (IsAudacityBatchMode())
+      return std::make_unique<BatchProgressDialog>();
    unsigned options = 0;
    if (!(flags & ProgressShowStop))
       options |= pdlgHideStopButton;
@@ -227,6 +256,9 @@ wxWidgetsBasicUI::DoMakeGenericProgress(
    if ((style & ProgressSmooth))
       flags |= wxPD_SMOOTH;
 
+   if (IsAudacityBatchMode())
+      return std::make_unique<BatchGenericProgress>();
+
    return std::make_unique<MyGenericProgress>(
       title, message, wxWidgetsWindowPlacement::GetParent(placement), flags);
 }
@@ -237,11 +269,21 @@ int wxWidgetsBasicUI::DoMultiDialog(const TranslatableString &message,
    const ManualPageID &helpPage,
    const TranslatableString &boxMsg, bool log)
 {
+   if (IsAudacityBatchMode())
+   {
+      AudacityBatchLog(title.Translation(), message.Translation());
+      return 0;
+   }
    return ::ShowMultiDialog(message, title, buttons, helpPage, boxMsg, log);
 }
 
 bool wxWidgetsBasicUI::DoOpenInDefaultBrowser(const wxString &url)
 {
+   if (IsAudacityBatchMode())
+   {
+      AudacityBatchLog(wxT("browser"), url);
+      return false;
+   }
    return wxLaunchDefaultBrowser(url);
 }
 

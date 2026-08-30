@@ -28,10 +28,8 @@ Paul Licameli split from AudacityProject.cpp
 #include "ProjectStatus.h"
 #include "ProjectWindow.h"
 #include "ProjectWindows.h"
-#include "SelectUtilities.h"
 #include "Tags.h"
 #include "TrackPanel.h"
-#include "TrackUtilities.h"
 #include "UndoManager.h"
 #include "Viewport.h"
 #include "WaveTrack.h"
@@ -338,12 +336,14 @@ AudacityProject *ProjectManager::New()
    projectHistory.InitialState();
    projectManager.RestartTimer();
 
-   if(bMaximized) {
-      window.Maximize(true);
-   }
-   else if (bIconized) {
-      // if the user close down and iconized state we could start back up and iconized state
-      // window.Iconize(TRUE);
+   if (!IsAudacityBatchMode()) {
+      if(bMaximized) {
+         window.Maximize(true);
+      }
+      else if (bIconized) {
+         // if the user close down and iconized state we could start back up and iconized state
+         // window.Iconize(TRUE);
+      }
    }
 
    //Initialise the Listeners
@@ -360,7 +360,7 @@ AudacityProject *ProjectManager::New()
 
    ModuleManager::Get().Dispatch(ProjectInitialized);
 
-   window.Show(true);
+   window.Show(!IsAudacityBatchMode());
 
    return p;
 }
@@ -732,27 +732,33 @@ AudacityProject *ProjectManager::OpenProject(
    return nullptr;
 }
 
-// This is done to empty out the tracks, but without creating a new project.
+// Empty the hidden frame without mutating the attached .aup3.
+// DoRemoveTracks while a SaveProject2 file is still open deletes sampleblocks
+// from that file (agent Close: was vacuuming a 200+ MB save down to empty SQLite).
 void ProjectManager::ResetProjectToEmpty() {
    auto &project = mProject;
    auto &projectFileIO = ProjectFileIO::Get( project );
    auto &projectFileManager = ProjectFileManager::Get( project );
    auto &projectHistory = ProjectHistory::Get( project );
-   auto &viewInfo = ViewInfo::Get( project );
+   auto &undoManager = UndoManager::Get( project );
+   auto &tracks = TrackList::Get( project );
 
-   SelectUtilities::DoSelectAll( project );
-   TrackUtilities::DoRemoveTracks( project );
+   projectFileIO.PrepareDetach();
+   undoManager.ClearStates();
+   tracks.Clear();
+   TrackPanel::Get( project ).UpdateViewIfNoTracks();
 
    Tags::Set( project, std::make_shared<Tags>() );
 
    WaveTrackFactory::Reset( project );
 
-   // InitialState will reset UndoManager
+   // CloseConnection clears mFileName. OpenNewProject then attaches a fresh
+   // temporary database. The saved file stays as the last SaveProject2 left it.
+   projectFileManager.CloseProject();
+   projectFileManager.OpenNewProject();
+
    projectHistory.InitialState();
    projectHistory.SetDirty(false);
-
-   projectFileManager.CloseProject();
-   projectFileManager.OpenProject();
 }
 
 void ProjectManager::RestartTimer()

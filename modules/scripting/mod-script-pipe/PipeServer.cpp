@@ -15,7 +15,7 @@ void PipeServer()
    HANDLE hPipeToSrv;
    HANDLE hPipeFromSrv;
 
-   static const TCHAR pipeNameToSrv[] = _T("\\\\.\\pipe\\ToSrvPipe");
+   static const TCHAR pipeNameToSrv[] = _T("\\\\.\\pipe\\ToAudacityForAgents");
 
    hPipeToSrv = CreateNamedPipe( 
       pipeNameToSrv ,
@@ -29,7 +29,7 @@ void PipeServer()
    if( hPipeToSrv == INVALID_HANDLE_VALUE)
       return;
 
-   static const TCHAR pipeNameFromSrv[] = __T("\\\\.\\pipe\\FromSrvPipe");
+   static const TCHAR pipeNameFromSrv[] = __T("\\\\.\\pipe\\FromAudacityForAgents");
 
    hPipeFromSrv = CreateNamedPipe( 
       pipeNameFromSrv ,
@@ -56,9 +56,11 @@ void PipeServer()
    {
       // open to (incoming) pipe first.  
       printf( "Obtaining pipe\n" );
+      fflush(stderr);
       bConnected = ConnectNamedPipe(hPipeToSrv, NULL) ? 
          TRUE : (GetLastError()==ERROR_PIPE_CONNECTED );
-      printf( "Obtained to-srv %i\n", bConnected );
+      fprintf( stderr, "audacity-for-agents: pipe: to-srv connected=%i\n", bConnected );
+      fflush(stderr);
 
       // open from (outgoing) pipe second.  This could block if there is no reader.
       bConnected = ConnectNamedPipe(hPipeFromSrv, NULL) ? 
@@ -94,12 +96,16 @@ void PipeServer()
          DisconnectNamedPipe( hPipeToSrv );
          FlushFileBuffers( hPipeFromSrv );
          DisconnectNamedPipe( hPipeFromSrv );
-         break;
+         // Wait for the next client. Close: must not kill the pipe server.
+         fprintf(stderr, "audacity-for-agents: pipe: client disconnected, listening again\n");
+         fflush(stderr);
       }
       else
       {
-         CloseHandle( hPipeToSrv );
-         CloseHandle( hPipeFromSrv );
+         fprintf(stderr, "audacity-for-agents: pipe: ConnectNamedPipe failed (%lu)\n",
+            GetLastError());
+         fflush(stderr);
+         Sleep(250);
       }
    }
    CloseHandle( hPipeToSrv );
@@ -114,7 +120,7 @@ void PipeServer()
 #include <unistd.h>
 #include <string.h>
 
-const char fifotmpl[] = "/tmp/audacity_script_pipe.%s.%d";
+const char fifotmpl[] = "/tmp/audacity_for_agents_script_pipe.%s.%d";
 
 const int nBuff = 1024;
 

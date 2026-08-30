@@ -57,13 +57,13 @@ INFILE = os.path.splitext(INFILE)[0]
 # Platform specific constants
 if sys.platform == 'win32':
     print("recording-test.py, running on windows")
-    PIPE_TO_AUDACITY = '\\\\.\\pipe\\ToSrvPipe'
-    PIPE_FROM_AUDACITY = '\\\\.\\pipe\\FromSrvPipe'
+    PIPE_TO_AUDACITY = '\\\\.\\pipe\\ToAudacityForAgents'
+    PIPE_FROM_AUDACITY = '\\\\.\\pipe\\FromAudacityForAgents'
     EOL = '\r\n\0'
 else:
     print("recording-test.py, running on linux or mac")
-    PIPE_TO_AUDACITY = '/tmp/audacity_script_pipe.to.' + str(os.getuid())
-    PIPE_FROM_AUDACITY = '/tmp/audacity_script_pipe.from.' + str(os.getuid())
+    PIPE_TO_AUDACITY = '/tmp/audacity_for_agents_script_pipe.to.' + str(os.getuid())
+    PIPE_FROM_AUDACITY = '/tmp/audacity_for_agents_script_pipe.from.' + str(os.getuid())
     EOL = '\n'
 
 

@@ -82,12 +82,12 @@ if sys.version_info[0] < 3 and sys.version_info[1] < 7:
 
 # Platform specific constants
 if sys.platform == 'win32':
-    WRITE_NAME = '\\\\.\\pipe\\ToSrvPipe'
-    READ_NAME = '\\\\.\\pipe\\FromSrvPipe'
+    WRITE_NAME = '\\\\.\\pipe\\ToAudacityForAgents'
+    READ_NAME = '\\\\.\\pipe\\FromAudacityForAgents'
     EOL = '\r\n\0'
 else:
     # Linux or Mac
-    PIPE_BASE = '/tmp/audacity_script_pipe.'
+    PIPE_BASE = '/tmp/audacity_for_agents_script_pipe.'
     WRITE_NAME = PIPE_BASE + 'to.' + str(os.getuid())
     READ_NAME = PIPE_BASE + 'from.' + str(os.getuid())
     EOL = '\n'

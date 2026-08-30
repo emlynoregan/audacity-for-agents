@@ -23,4 +23,10 @@ WX_INIT_API int AudacityMessageBox(const TranslatableString& message,
    wxWindow *parent = NULL,
    int x = wxDefaultCoord, int y = wxDefaultCoord);
 
+// Audacity for Agents: always on. This binary never shows windows or dialogs.
+WX_INIT_API void SetAudacityBatchMode(bool enabled);
+WX_INIT_API bool IsAudacityBatchMode();
+// Print to stderr (parent console / redirected pipes). Never a dialog.
+WX_INIT_API void AudacityBatchLog(const wxString& channel, const wxString& text);
+
 #endif

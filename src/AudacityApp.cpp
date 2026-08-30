@@ -37,6 +37,8 @@ It handles initialization and termination by subclassing wxApp.
 #include <wx/sysopt.h>
 #include <wx/fontmap.h>
 
+#include <cstdio>
+
 #include <wx/fs_zip.h>
 
 #include <wx/dir.h>
@@ -60,6 +62,8 @@ It handles initialization and termination by subclassing wxApp.
 
 #if defined(__WXMSW__)
 #include <wx/msw/registry.h> // for wxRegKey
+#include <windows.h>
+#include <cstdio>
 #endif
 
 #include "AudacityLogger.h"
@@ -815,7 +819,7 @@ static wxArrayString ofqueue;
 // of Audacity.
 //
 
-#define IPC_APPL wxT("audacity")
+#define IPC_APPL wxT("audacity-for-agents")
 #define IPC_TOPIC wxT("System")
 
 class IPCConn final : public wxConnection
@@ -1182,7 +1186,8 @@ wxLanguageInfo userLangs[] =
 void AudacityApp::OnFatalException()
 {
 #if defined(HAS_CRASH_REPORT)
-   CrashReport::Generate(wxDebugReport::Context_Exception);
+   if (!IsAudacityBatchMode())
+      CrashReport::Generate(wxDebugReport::Context_Exception);
 #endif
 
    exit(-1);
@@ -1250,6 +1255,26 @@ AudacityApp::AudacityApp()
 
 bool AudacityApp::Initialize(int& argc, wxChar** argv)
 {
+#if defined(__WXMSW__)
+   // GUI-subsystem exe: inherit parent stdio, or attach to the parent's console
+   // (cmd / Python / Cursor). Never AllocConsole — that is a window.
+   {
+      HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+      HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
+      const bool haveOut = out && out != INVALID_HANDLE_VALUE;
+      const bool haveErr = err && err != INVALID_HANDLE_VALUE;
+      if ((!haveOut || !haveErr) && AttachConsole(ATTACH_PARENT_PROCESS))
+      {
+         FILE *fp = nullptr;
+         if (!haveOut)
+            freopen_s(&fp, "CONOUT$", "w", stdout);
+         if (!haveErr)
+            freopen_s(&fp, "CONOUT$", "w", stderr);
+      }
+      setvbuf(stdout, nullptr, _IONBF, 0);
+      setvbuf(stderr, nullptr, _IONBF, 0);
+   }
+#endif
    if(!PluginHost::IsHostProcess())
    {
       InitCrashreports();
@@ -1536,9 +1561,9 @@ bool AudacityApp::OnInit()
 
 bool AudacityApp::InitPart2()
 {
-#if defined(__WXMAC__)
+   // Stay alive after Close: of the last project (same as macOS). This is a
+   // pipe daemon, not a GUI that should quit when the hidden frame goes away.
    SetExitOnFrameDelete(false);
-#endif
 
    // Make sure the temp dir isn't locked by another process.
    {
@@ -1582,6 +1607,11 @@ bool AudacityApp::InitPart2()
    wxString journalFileName;
    const bool playingJournal = parser->Found("j", &journalFileName);
 
+   if (parser->Found(wxT("gui")))
+      fprintf(stderr, "audacity-for-agents: --gui ignored (this binary never shows windows)\n");
+   if (parser->Found(wxT("batch")))
+      SetAudacityBatchMode(true);
+
 #if defined(__WXMSW__) && !defined(__WXUNIVERSAL__) && !defined(__CYGWIN__)
    if (!playingJournal)
       this->AssociateFileTypes();
@@ -1610,7 +1640,8 @@ bool AudacityApp::InitPart2()
 
    AudacityProject *project;
 
-   ShowSplashScreen();
+   if (!IsAudacityBatchMode())
+      ShowSplashScreen();
 
    {
       // ANSWER-ME: Why is YieldFor needed at all?
@@ -1656,7 +1687,7 @@ bool AudacityApp::InitPart2()
 
    //Search for the new plugins
    std::vector<wxString> failedPlugins;
-   if(!playingJournal && !SkipEffectsScanAtStartup.Read())
+   if(!playingJournal && !SkipEffectsScanAtStartup.Read() && !IsAudacityBatchMode())
    {
       HideSplashScreen(true);
       auto newPlugins = PluginManager::Get().CheckPluginUpdates();
@@ -1690,10 +1721,11 @@ bool AudacityApp::InitPart2()
    HideSplashScreen(splashFadeOut);
 
 #if defined(HAVE_UPDATES_CHECK)
-   UpdateManager::Start(playingJournal);
+   if (!IsAudacityBatchMode())
+      UpdateManager::Start(playingJournal);
 #endif
 
-   if (!playingJournal && ProjectSettings::Get(*project).GetShowSplashScreen())
+   if (!IsAudacityBatchMode() && !playingJournal && ProjectSettings::Get(*project).GetShowSplashScreen())
    {
       // This may do a check-for-updates at every start up.
       // Mainly this is to tell users of ALPHAS who don't know that they have an ALPHA.
@@ -1747,7 +1779,7 @@ bool AudacityApp::InitPart2()
             SafeMRUOpen(parser->GetParam(i));
          }
 
-         if(!failedPlugins.empty())
+         if(!failedPlugins.empty() && !IsAudacityBatchMode())
          {
             auto dialog = safenew IncompatiblePluginsDialog(GetTopWindow(), wxID_ANY, ScanType::Startup, failedPlugins);
             dialog->Bind(wxEVT_CLOSE_WINDOW, [dialog](wxCloseEvent&) { dialog->Destroy(); });
@@ -1992,7 +2024,7 @@ bool AudacityApp::InitTempDir()
 
 bool AudacityApp::CreateSingleInstanceChecker(const wxString &dir)
 {
-   wxString name = wxString::Format(wxT("audacity-lock-%s"), wxGetUserId());
+   wxString name = wxString::Format(wxT("audacity-for-agents-lock-%s"), wxGetUserId());
    mChecker.reset();
    auto checker = std::make_unique<wxSingleInstanceChecker>();
 
@@ -2467,6 +2499,11 @@ std::unique_ptr<wxCmdLineParser> AudacityApp::ParseCommandLine()
    /*i18n-hint: This displays the Audacity version */
    parser->AddSwitch(wxT("v"), wxT("version"), _("display Audacity version"));
 
+   parser->AddSwitch(wxT(""), wxT("batch"),
+      _("headless (default; this binary never shows windows)"));
+   parser->AddSwitch(wxT(""), wxT("gui"),
+      _("ignored; this binary never shows windows"));
+
    /*i18n-hint: This is a list of one or more files that Audacity
     *           should open upon startup */
    parser->AddParam(_("audio or project file name"),
@@ -2647,7 +2684,7 @@ void AudacityApp::OnMenuExit(wxCommandEvent & event)
 
    // LL:  Removed "if" to allow closing based on final project count.
    // if(AllProjects{}.empty())
-      QuitAudacity();
+      QuitAudacity(IsAudacityBatchMode());
 
    // LL:  Veto quit if projects are still open.  This can happen
    //      if the user selected Cancel in a Save dialog.
@@ -2673,155 +2710,9 @@ void AudacityApp::OnThemeChange(ThemeChangeMessage)
 #if defined(__WXMSW__) && !defined(__WXUNIVERSAL__) && !defined(__CYGWIN__)
 void AudacityApp::AssociateFileTypes()
 {
-   // Check pref in case user has already decided against it.
-   bool bWantAssociateFiles = true;
-   if (gPrefs->Read(wxT("/WantAssociateFiles"), &bWantAssociateFiles) &&
-         !bWantAssociateFiles)
-   {
-      // User has already decided against it
-      return;
-   }
-
-   wxRegKey associateFileTypes;
-
-   auto IsDefined = [&](const wxString &type)
-   {
-      associateFileTypes.SetName(wxString::Format(wxT("HKCR\\%s"), type));
-      bool bKeyExists = associateFileTypes.Exists();
-      if (!bKeyExists)
-      {
-         // Not at HKEY_CLASSES_ROOT. Try HKEY_CURRENT_USER.
-         associateFileTypes.SetName(wxString::Format(wxT("HKCU\\Software\\Classes\\%s"), type));
-         bKeyExists = associateFileTypes.Exists();
-      }
-      return bKeyExists;
-   };
-
-   auto DefineType = [&](const wxString &type)
-   {
-      wxString root_key = wxT("HKCU\\Software\\Classes\\");
-
-      // Start with HKEY_CLASSES_CURRENT_USER.
-      associateFileTypes.SetName(wxString::Format(wxT("%s%s"), root_key, type));
-      if (!associateFileTypes.Create(true))
-      {
-         // Not at HKEY_CLASSES_CURRENT_USER. Try HKEY_CURRENT_ROOT.
-         root_key = wxT("HKCR\\");
-         associateFileTypes.SetName(wxString::Format(wxT("%s%s"), root_key, type));
-         if (!associateFileTypes.Create(true))
-         {
-            // Actually, can't create keys. Empty root_key to flag failure.
-            root_key.empty();
-         }
-      }
-
-      if (!root_key.empty())
-      {
-         associateFileTypes = wxT("Audacity.Project"); // Finally set value for the key
-      }
-
-      return root_key;
-   };
-
-   // Check for legacy and UP types
-   if (IsDefined(wxT(".aup3")) && IsDefined(wxT(".aup")) && IsDefined(wxT("Audacity.Project")))
-   {
-      // Already defined, so bail
-      return;
-   }
-
-   // File types are not currently associated.
-   int wantAssoc =
-      AudacityMessageBox(
-         XO(
-"Audacity project (.aup3) files are not currently \nassociated with Audacity. \n\nAssociate them, so they open on double-click?"),
-         XO("Audacity Project Files"),
-         wxYES_NO | wxICON_QUESTION);
-
-   if (wantAssoc == wxNO)
-   {
-      // User said no. Set a pref so we don't keep asking.
-      gPrefs->Write(wxT("/WantAssociateFiles"), false);
-      gPrefs->Flush();
-      return;
-   }
-
-   // Show that user wants associations
-   gPrefs->Write(wxT("/WantAssociateFiles"), true);
+   // This fork must not steal .aup3 from stock Audacity.
+   gPrefs->Write(wxT("/WantAssociateFiles"), false);
    gPrefs->Flush();
-
-   wxString root_key;
-
-   root_key = DefineType(wxT(".aup3"));
-   if (root_key.empty())
-   {
-      //v Warn that we can't set keys. Ask whether to set pref for no retry?
-   }
-   else
-   {
-      DefineType(wxT(".aup"));
-
-      associateFileTypes = wxT("Audacity.Project"); // Finally set value for .AUP key
-      associateFileTypes.SetName(root_key + wxT("Audacity.Project"));
-      if (!associateFileTypes.Exists())
-      {
-         associateFileTypes.Create(true);
-         associateFileTypes = wxT("Audacity Project File");
-      }
-
-      associateFileTypes.SetName(root_key + wxT("Audacity.Project\\shell"));
-      if (!associateFileTypes.Exists())
-      {
-         associateFileTypes.Create(true);
-         associateFileTypes = wxT("");
-      }
-
-      associateFileTypes.SetName(root_key + wxT("Audacity.Project\\shell\\open"));
-      if (!associateFileTypes.Exists())
-      {
-         associateFileTypes.Create(true);
-      }
-
-      associateFileTypes.SetName(root_key + wxT("Audacity.Project\\shell\\open\\command"));
-      wxString tmpRegAudPath;
-      if(associateFileTypes.Exists())
-      {
-         tmpRegAudPath = associateFileTypes.QueryDefaultValue().Lower();
-      }
-
-      if (!associateFileTypes.Exists() ||
-            (tmpRegAudPath.Find(wxT("audacity.exe")) >= 0))
-      {
-         associateFileTypes.Create(true);
-         associateFileTypes = (wxString)argv[0] + (wxString)wxT(" \"%1\"");
-      }
-
-#if 0
-      // These can be use later to support more startup messages
-      // like maybe "Import into existing project" or some such.
-      // Leaving here for an example...
-      associateFileTypes.SetName(root_key + wxT("Audacity.Project\\shell\\open\\ddeexec"));
-      if (!associateFileTypes.Exists())
-      {
-         associateFileTypes.Create(true);
-         associateFileTypes = wxT("%1");
-      }
-
-      associateFileTypes.SetName(root_key + wxT("Audacity.Project\\shell\\open\\ddeexec\\Application"));
-      if (!associateFileTypes.Exists())
-      {
-         associateFileTypes.Create(true);
-         associateFileTypes = IPC_APPL;
-      }
-
-      associateFileTypes.SetName(root_key + wxT("Audacity.Project\\shell\\open\\ddeexec\\Topic"));
-      if (!associateFileTypes.Exists())
-      {
-         associateFileTypes.Create(true);
-         associateFileTypes = IPC_TOPIC;
-      }
-#endif
-   }
 }
 #endif
 
