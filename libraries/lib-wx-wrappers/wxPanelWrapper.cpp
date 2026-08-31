@@ -117,4 +117,18 @@ int wxDirDialogWrapper::ShowModal()
    return wxID_CANCEL;
 }
 
+int AudacityMessageDialog::ShowModal()
+{
+   // Native wxMessageDialog uses a real MessageBox on Windows — that bypassed
+   // wxDialogWrapper stubs and blocked the script pipe until OK was clicked.
+   fprintf(stderr,
+      "audacity-for-agents: dialog suppressed (MessageDialog): %s: %s\n",
+      (const char *)GetTitle().utf8_str(),
+      (const char *)GetMessage().utf8_str());
+   fflush(stderr);
+   if (mStyle & wxYES_NO)
+      return wxNO;
+   return wxOK;
+}
+
 AudacityMessageDialog::~AudacityMessageDialog() = default;

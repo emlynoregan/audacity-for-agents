@@ -230,8 +230,15 @@ public:
          const wxPoint& pos = wxDefaultPosition)
    : wxTabTraversalWrapper< wxMessageDialog>
       ( parent, message.Translation(), caption.Translation(), style, pos )
+   , mStyle(style)
    {}
    ~AudacityMessageDialog();
+
+   // Audacity for Agents: never present a real message box.
+   int ShowModal() override;
+
+private:
+   long mStyle;
 };
 
 #endif

@@ -452,13 +452,22 @@ bool ProjectFileManager::SaveAs(const FilePath &newFileName, bool addToHistory /
    //We should only overwrite it if this project already has the same name, where the user
    //simply chose to use the save as command although the save command would have the effect.
    if( !bOwnsNewName && wxFileExists(newFileName)) {
-      AudacityMessageDialog m(
-         nullptr,
-         XO("The project was not saved because the file name provided would overwrite another project.\nPlease try again and select an original name."),
-         XO("Error Saving Project"),
-         wxOK|wxICON_ERROR );
-      m.ShowModal();
-      return false;
+      if (IsAudacityBatchMode()) {
+         // Agents routinely rewrite the same output .aup3. Allow overwrite;
+         // DoSave backs up via BackupProject when fromSaveAs is true.
+         AudacityBatchLog(
+            wxT("SaveAs"),
+            wxString::Format(
+               wxT("overwriting existing project file: %s"), newFileName));
+      } else {
+         AudacityMessageDialog m(
+            nullptr,
+            XO("The project was not saved because the file name provided would overwrite another project.\nPlease try again and select an original name."),
+            XO("Error Saving Project"),
+            wxOK|wxICON_ERROR );
+         m.ShowModal();
+         return false;
+      }
    }
 
    auto success = DoSave(newFileName, !bOwnsNewName);
