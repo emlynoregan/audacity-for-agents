@@ -8,6 +8,7 @@
 
 #include "wxPanelWrapper.h"
 
+#include <cstdio>
 #include <wx/grid.h>
 
 const TranslatableString wxDirDialogWrapper::DefaultDialogPrompt = XO("Select a directory");
@@ -82,6 +83,38 @@ void wxDialogWrapper::SetName(const TranslatableString & name)
 void wxDialogWrapper::SetName()
 {
    wxDialog::SetName( wxDialog::GetTitle() );
+}
+
+int wxDialogWrapper::ShowModal()
+{
+   // This binary never shows windows. Callers treat CANCEL / NO as decline.
+   const auto title = GetTitle();
+   fprintf(stderr,
+      "audacity-for-agents: dialog suppressed (ShowModal): %s\n",
+      (const char *)title.utf8_str());
+   fflush(stderr);
+   // CANCEL is the safe universal decline for agents.
+   return wxID_CANCEL;
+}
+
+bool wxDialogWrapper::Show(bool show)
+{
+   if (!show)
+      return wxDialog::Show(false);
+   const auto title = GetTitle();
+   fprintf(stderr,
+      "audacity-for-agents: dialog suppressed (Show): %s\n",
+      (const char *)title.utf8_str());
+   fflush(stderr);
+   return false;
+}
+
+int wxDirDialogWrapper::ShowModal()
+{
+   fprintf(stderr,
+      "audacity-for-agents: dialog suppressed (DirDialog::ShowModal)\n");
+   fflush(stderr);
+   return wxID_CANCEL;
 }
 
 AudacityMessageDialog::~AudacityMessageDialog() = default;

@@ -116,6 +116,10 @@ public:
    void SetName(const TranslatableString & title);
    // Set the name to equal the title:
    void SetName();
+
+   // Audacity for Agents: never present modal UI. Log and cancel.
+   int ShowModal() override;
+   bool Show(bool show = true) override;
 };
 
 #include <wx/dirdlg.h> // to inherit
@@ -156,6 +160,8 @@ public:
          parent, message.Translation(), defaultPath, style, pos, size,
          name.Translation() );
    }
+
+   int ShowModal() override;
 };
 
 #include "FileDialog/FileDialog.h"

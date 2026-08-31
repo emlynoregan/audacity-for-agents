@@ -187,7 +187,7 @@ A minimal mix is the same plus `Import2` / `normalize_track` / `save_project` / 
 | `ERROR_PIPE_BUSY` (231) / cannot send `Exit:` | Soft-close: `soft_close_agent()` (WM_CLOSE), then relaunch. Never `taskkill`. Fixed server recycles pipe instances after failed connects (need 0.1.2+ binary). |
 | Timeout on Import/Save | Raise `pipe.timeout` / `save_project(..., timeout_sec=…)`. Large stems take minutes. |
 | `Failed` in reply | Check `quote_path`, unique basenames, track index. |
-| Window or dialog appears | Should not. Stop and report. Never force-kill. |
+| Window or dialog appears | Should not. Stop and report. Never force-kill. (0.1.3+: modal dialogs are stubbed to stderr.) |
 | Clean slate needed and agent is **not** running | `clear_active_projects()` / `clear_session_data()` in `audacity_lifecycle`. Refuse if the process is still up. SessionData is under `Portable Settings\SessionData` next to the exe. |
 
 Logs: dialog text and logger lines go to **stderr**. `Portable Settings/lastlog.txt` may exist beside the exe after quit.
