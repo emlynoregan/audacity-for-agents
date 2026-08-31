@@ -23,6 +23,12 @@ This fork changes identity (mutex, IPC name, pipe names, exe name), stays headle
 
 First working version on **Windows** (Audacity 3.7.8 base). Build and run next to a normal Audacity 3.x install. Rebase onto 3.7.x only — do **not** merge Audacity 4 (`master` / Qt).
 
+**Installer:** Windows Setup from House of Ur:
+
+https://audacityforagents-bronzearch.house-of-ur.com/
+
+Default install: `%LOCALAPPDATA%\Audacity for Agents\` (optional PATH / `AUDACITY_FOR_AGENTS_EXE`). Or build from source below.
+
 ## Quick start for agents
 
 If you are an AI coding agent that needs to build or mix audio through this tool, read **[`AGENT.md`](./AGENT.md)** first. Use the Python helpers under [`python/`](./python/).

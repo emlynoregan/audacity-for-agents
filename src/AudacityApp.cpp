@@ -36,6 +36,7 @@ It handles initialization and termination by subclassing wxApp.
 #include <wx/stdpaths.h>
 #include <wx/sysopt.h>
 #include <wx/fontmap.h>
+#include <wx/msgout.h>
 
 #include <cstdio>
 
@@ -1275,6 +1276,9 @@ bool AudacityApp::Initialize(int& argc, wxChar** argv)
       setvbuf(stderr, nullptr, _IONBF, 0);
    }
 #endif
+   // wxCmdLineParser Usage() otherwise MessageBox on GUI-subsystem builds
+   // ("Usage: …") when help/parse fails — never show that dialog.
+   wxMessageOutput::Set(new wxMessageOutputStderr);
    if(!PluginHost::IsHostProcess())
    {
       InitCrashreports();
@@ -1798,6 +1802,8 @@ bool AudacityApp::InitPart2()
 #ifdef EXPERIMENTAL_EASY_CHANGE_KEY_BINDINGS
    static CommandManager::GlobalMenuHook::Scope scope{
    [](const CommandID &id){
+      if (IsAudacityBatchMode())
+         return false;
       if (::wxGetMouseState().ShiftDown()) {
          // Only want one page of the preferences
          PrefsPanel::Factories factories;
@@ -1985,23 +1991,14 @@ bool AudacityApp::InitTempDir()
    #endif
 
    if (temp.empty()) {
-      // Failed
+      // Failed — never open prefs UI in this binary (batch / headless).
       if( !TempDirectory::IsTempDirectoryNameOK( tempFromPrefs ) ) {
          AudacityMessageBox(XO(
-"Audacity could not find a safe place to store temporary files.\nAudacity needs a place where automatic cleanup programs won't delete the temporary files.\nPlease enter an appropriate directory in the preferences dialog."));
+"Audacity could not find a safe place to store temporary files.\nAudacity needs a place where automatic cleanup programs won't delete the temporary files.\nSet a writable temp directory (Portable Settings / preferences) and relaunch."));
       } else {
          AudacityMessageBox(XO(
-"Audacity could not find a place to store temporary files.\nPlease enter an appropriate directory in the preferences dialog."));
+"Audacity could not find a place to store temporary files.\nSet a writable temp directory and relaunch."));
       }
-
-      // Only want one page of the preferences
-      PrefsPanel::Factories factories;
-      factories.push_back(DirectoriesPrefsFactory());
-      GlobalPrefsDialog dialog(nullptr, nullptr, factories);
-      dialog.ShowModal();
-
-      AudacityMessageBox(XO(
-"Audacity is now going to exit. Please launch Audacity again to use the new temporary directory."));
       return false;
    }
 
@@ -2489,9 +2486,10 @@ std::unique_ptr<wxCmdLineParser> AudacityApp::ParseCommandLine()
 
    parser->AddOption(wxT("j"), wxT("journal"), journalOptionDescription);
 
-   /*i18n-hint: This displays a list of available options */
-   parser->AddSwitch(wxT("h"), wxT("help"), _("this help message"),
-                     wxCMD_LINE_OPTION_HELP);
+   /*i18n-hint: This displays a list of available options.
+     Do NOT use wxCMD_LINE_OPTION_HELP — that triggers a MessageBox Usage
+     dialog on Windows GUI builds. We print usage to stderr ourselves. */
+   parser->AddSwitch(wxT("h"), wxT("help"), _("this help message"));
 
    /*i18n-hint: This runs a set of automatic tests on Audacity itself */
    parser->AddSwitch(wxT("t"), wxT("test"), _("run self diagnostics"));
@@ -2515,11 +2513,15 @@ std::unique_ptr<wxCmdLineParser> AudacityApp::ParseCommandLine()
    parser->AddOption(wxT("u"), wxT("url"), _("Handle 'audacity://' url"));
 #endif
 
-   // Run the parser
-   if (parser->Parse() == 0)
-      return parser;
+   // showUsage=false: never MessageBox. Log usage to stderr on help/error.
+   const int parseRc = parser->Parse(/*showUsage=*/false);
+   if (parseRc != 0 || parser->Found(wxT("h")))
+   {
+      AudacityBatchLog(wxT("usage"), parser->GetUsageString());
+      return {};
+   }
 
-   return{};
+   return parser;
 }
 
 void AudacityApp::OnQueryEndSession(wxCloseEvent & event)

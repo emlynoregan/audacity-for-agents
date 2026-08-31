@@ -11,6 +11,7 @@ Paul Licameli split from Prefs.cpp
 
 #include "AudacityFileConfig.h"
 
+#include "AudacityMessageBox.h"
 #include "HelpSystem.h"
 #include "wxPanelWrapper.h"
 #include "ShuttleGui.h"
@@ -20,6 +21,8 @@ Paul Licameli split from Prefs.cpp
 #include <wx/bmpbuttn.h>
 #include <wx/sizer.h>
 #include <wx/wfstream.h>
+
+#include <cstdlib>
 
 AudacityFileConfig::AudacityFileConfig(
    const wxString& appName,
@@ -148,6 +151,17 @@ bool AudacityFileConfig::Flush(bool bCurrentOnly)
 
 void AudacityFileConfig::Warn() const
 {
+   if (IsAudacityBatchMode())
+   {
+      AudacityBatchLog(
+         wxT("Configuration Error"),
+         wxString::Format(
+            wxT("config file not writable (disk full or permissions): %s"),
+            mLocalFilename));
+      // No retry dialog — agents cannot click through.
+      _exit(-1);
+   }
+
    wxDialogWrapper dlg(nullptr, wxID_ANY, XO("Audacity Configuration Error"));
 
    ShuttleGui S(&dlg, eIsCreating);

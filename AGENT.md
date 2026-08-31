@@ -17,6 +17,10 @@ Companion code: [`python/`](./python/). Project overview: [`README.md`](./README
 
 Set `AUDACITY_FOR_AGENTS_EXE` to the full path of `AudacityForAgents.exe` before launching from Python. Optional: `AUDACITY_TO_PIPE`, `AUDACITY_FROM_PIPE`.
 
+Typical Windows install path after Setup:  
+`%LOCALAPPDATA%\Audacity for Agents\AudacityForAgents.exe`  
+(the installer can also set that env var and/or PATH). Download: see [`README.md`](./README.md). Build-from-source layout: next to your CMake `Release\` output.
+
 ## Hard rules
 
 1. **Never** open, launch, or script stock `Audacity.exe` / `ToSrvPipe`.
