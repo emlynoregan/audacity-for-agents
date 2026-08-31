@@ -58,6 +58,8 @@ Source: "Package\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs creat
 [Dirs]
 ; Portable Settings next to the exe (isolated from stock Audacity %APPDATA%)
 Name: "{app}\Portable Settings"; Permissions: users-modify
+Name: "{app}\Portable Settings\SessionData"; Permissions: users-modify
+Name: "{app}\Portable Settings\Temp"; Permissions: users-modify
 
 [Icons]
 Name: "{group}\Audacity for Agents"; Filename: "{app}\AudacityForAgents.exe"; Parameters: "--batch"

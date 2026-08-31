@@ -51,6 +51,8 @@ pipe.connect()               # handshake: Message: Text=ping
 
 `ensure_agent_running()` waits until the named pipes exist. Launch cwd is the directory containing the exe so Portable Settings apply. Argv is `--batch`. `--gui` is ignored.
 
+The Python client talks to the pipes with **Win32 `CreateFileW` / `ReadFile` / `WriteFile`**. Do **not** use builtin `open()` on `\\.\pipe\…` — on CPython 3.13 that raises `OSError: [Errno 22] Invalid argument` and can leave the server pipe instance busy so a later `Exit:` cannot attach.
+
 Keep one `pipe` for the batch. After `Close:`, the process and pipes stay up — call `reconnect_pipe(pipe)` (pings; relaunches **only** if the agent died).
 
 ## One-project recipe
@@ -180,11 +182,13 @@ A minimal mix is the same plus `Import2` / `normalize_track` / `save_project` / 
 | Symptom | What to do |
 |---------|------------|
 | Exe not found | Set `AUDACITY_FOR_AGENTS_EXE`. Stop. Do not use stock Audacity. |
-| Pipes / handshake fail | Confirm Task Manager shows **`AudacityForAgents.exe`**. Retry `ensure_agent_running()`. |
+| Pipes / handshake fail | Confirm Task Manager shows **`AudacityForAgents.exe`**. Retry `ensure_agent_running()`. Use the repo `python/` client (Win32 pipes), not builtin `open()`. |
+| `EINVAL` / errno 22 on `open(pipe)` | Expected on Python 3.13 with builtin `open()`. Use `AudacityPipe` from this repo. |
+| `ERROR_PIPE_BUSY` (231) / cannot send `Exit:` | Soft-close: `soft_close_agent()` (WM_CLOSE), then relaunch. Never `taskkill`. Fixed server recycles pipe instances after failed connects (need 0.1.2+ binary). |
 | Timeout on Import/Save | Raise `pipe.timeout` / `save_project(..., timeout_sec=…)`. Large stems take minutes. |
 | `Failed` in reply | Check `quote_path`, unique basenames, track index. |
 | Window or dialog appears | Should not. Stop and report. Never force-kill. |
-| Clean slate needed and agent is **not** running | `clear_active_projects()` / `clear_session_data()` in `audacity_lifecycle`. Refuse if the process is still up. |
+| Clean slate needed and agent is **not** running | `clear_active_projects()` / `clear_session_data()` in `audacity_lifecycle`. Refuse if the process is still up. SessionData is under `Portable Settings\SessionData` next to the exe. |
 
 Logs: dialog text and logger lines go to **stderr**. `Portable Settings/lastlog.txt` may exist beside the exe after quit.
 

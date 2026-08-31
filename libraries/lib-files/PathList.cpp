@@ -162,11 +162,24 @@ void FileNames::InitializePathList()
    FileNames::AddUniquePathToPathList(progPath, audacityPathList);
    FileNames::AddUniquePathToPathList(progPath + wxT("\\Languages"), audacityPathList);
 
-   // See bug #1271 for explanation of location
-   tmpDirLoc = FileNames::MkDir(wxStandardPaths::Get().GetUserLocalDataDir());
-   TempDirectory::SetDefaultTempDir( wxString::Format(
-      wxT("%s\\SessionData"), tmpDirLoc ) );
-#endif //__WXWSW__
+   // Portable Settings beside the exe: keep SessionData there (not stock
+   // %LOCALAPPDATA%\Audacity\SessionData).
+   {
+      wxFileName portablePrefsPath(progPath, wxT("Portable Settings"));
+      if (::wxDirExists(portablePrefsPath.GetFullPath()))
+      {
+         TempDirectory::SetDefaultTempDir( FileNames::MkDir(
+            portablePrefsPath.GetFullPath() + wxT("\\SessionData") ) );
+      }
+      else
+      {
+         // See bug #1271 for explanation of location
+         tmpDirLoc = FileNames::MkDir(wxStandardPaths::Get().GetUserLocalDataDir());
+         TempDirectory::SetDefaultTempDir( wxString::Format(
+            wxT("%s\\SessionData"), tmpDirLoc ) );
+      }
+   }
+#endif //__WXMSW__
 
 #ifdef __WXMAC__
    // On Mac OS X, the path to the Audacity program is programPath

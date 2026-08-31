@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import time
+from ctypes import wintypes
 from pathlib import Path
 
 from audacity_pipe import FROM_PIPE, TO_PIPE, AudacityPipe, quote_path
@@ -161,10 +162,62 @@ def exit_audacity_clean(pipe: AudacityPipe) -> None:
             print("  Audacity for Agents exited", flush=True)
             return
         time.sleep(0.5)
+    # Soft close via WM_CLOSE on hidden frames — not taskkill.
+    if soft_close_agent():
+        soft_deadline = time.time() + 30
+        while time.time() < soft_deadline:
+            if not audacity_running():
+                print("  Audacity for Agents exited after WM_CLOSE", flush=True)
+                return
+            time.sleep(0.5)
     raise TimeoutError(
         "AudacityForAgents.exe did not exit after Exit:. Do not force-kill; "
         "end the task from Task Manager only if a window appeared (it should not)."
     )
+
+
+def soft_close_agent() -> bool:
+    """Post WM_CLOSE to hidden Audacity for Agents windows (never taskkill).
+
+    Use when pipes are ERROR_PIPE_BUSY and Exit: cannot be sent. Returns True
+    if at least one WM_CLOSE was posted.
+    """
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
+    WM_CLOSE = 0x0010
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    posted = False
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def _enum(hwnd, _lparam):
+        nonlocal posted
+        if not user32.IsWindow(hwnd):
+            return True
+        pid = wintypes.DWORD(0)
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if not pid.value:
+            return True
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            return True
+        try:
+            buf = ctypes.create_unicode_buffer(260)
+            size = wintypes.DWORD(260)
+            # QueryFullProcessImageNameW
+            if not kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+                return True
+            if not buf.value.lower().endswith("audacityforagents.exe"):
+                return True
+        finally:
+            kernel32.CloseHandle(handle)
+        user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
+        posted = True
+        return True
+
+    user32.EnumWindows(_enum, 0)
+    if posted:
+        print("  posted WM_CLOSE to Audacity for Agents window(s)", flush=True)
+    return posted
 
 
 def launch_agent() -> None:
@@ -228,9 +281,21 @@ def reconnect_pipe(pipe: AudacityPipe | None = None) -> AudacityPipe:
             pass
         time.sleep(0.5)
     ensure_agent_running()
-    fresh = AudacityPipe(timeout=1800.0)
-    fresh.connect()
-    return fresh
+    try:
+        fresh = AudacityPipe(timeout=1800.0)
+        fresh.connect()
+        return fresh
+    except RuntimeError:
+        # Pipes may be busy after a failed open()-based client; soft-close and retry.
+        if audacity_running() and soft_close_agent():
+            deadline = time.time() + 45
+            while time.time() < deadline and audacity_running():
+                time.sleep(0.5)
+            ensure_agent_running()
+            fresh = AudacityPipe(timeout=1800.0)
+            fresh.connect()
+            return fresh
+        raise
 
 
 def clear_active_projects(cfg: Path | None = None) -> int:

@@ -24,6 +24,8 @@ Or export the same variable in your shell / agent environment. If unset, the cli
 
 Optional pipe overrides: `AUDACITY_TO_PIPE`, `AUDACITY_FROM_PIPE` (defaults are `\\.\pipe\ToAudacityForAgents` and `FromAudacityForAgents`).
 
+Requires **Windows**. Pipe I/O uses Win32 APIs (not builtin `open()`), so Python 3.13 works.
+
 ## Minimal usage
 
 ```python
