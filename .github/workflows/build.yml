@@ -1,12 +1,8 @@
+# Audacity for Agents: auto CI disabled (Windows installers ship from local builds).
+# Manual runs still available via Actions → workflow_dispatch.
 name: Build Audacity
 
 on:
-  push:
-    paths-ignore: ["au4/**", "**/**.md", "**/**.dox2", "**/**.dox", "**/**.dox.in", "**/LICENSE.txt", "/.github/ISSUE_TEMPLATE/**", "INSTALL", "CHANGELOG.txt", ".editorconfig", ".gitignore", ".gitattributes"]
-
-  pull_request:
-    paths-ignore: ["au4/**", "**/**.md", "**/**.dox2", "**/**.dox", "**/**.dox.in", "**/LICENSE.txt", "/.github/ISSUE_TEMPLATE/**", "INSTALL", "CHANGELOG.txt", ".editorconfig", ".gitignore", ".gitattributes"]
-
   workflow_dispatch:
     inputs:
       build_level:

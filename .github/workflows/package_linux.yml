@@ -1,7 +1,7 @@
+# Audacity for Agents: auto CI disabled. Manual via workflow_dispatch only.
 name: Build Audacity Linux Packages
 
 on:
-  push:
   workflow_dispatch:
     inputs:
       build_level:

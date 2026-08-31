@@ -1,7 +1,7 @@
+# Audacity for Agents: do not auto-publish upstream Audacity.Audacity on GitHub Releases.
 name: Publish to WinGet
 on:
-  release:
-    types: [released]
+  workflow_dispatch:
 jobs:
   publish:
     runs-on: windows-latest # action can only be run on windows

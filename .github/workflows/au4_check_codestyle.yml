@@ -1,10 +1,8 @@
+# Audacity for Agents: auto CI disabled. Manual via workflow_dispatch only.
 name: '[AU4] Check: Codestyle'
 
 on:
-  pull_request:
-    paths: ["au4/**"]
-    branches:
-    - master
+  workflow_dispatch:
 
 jobs:
   au4_codestyle:    
